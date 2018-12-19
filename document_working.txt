@@ -1,0 +1,508 @@
+/// <reference path="../../Scripts/_references.js" />
+
+////////////////////////////////////////////////
+//////  Model: Bind DetailView List /////////////
+//////////////////////////////////////////////
+
+$(document).ready(function () {
+    timeShowLoadingMessage();
+    LoadDetailViewList();
+    var RootURL = '@Url.Content("~/")';
+    $("#divTimeLineChart").hide();
+    $("#dvForiegnOutcomeCase").hide();
+    $("#dvPacerLink").text("PACER");
+    //showhidedetails();
+    //LoadPatentInfo(); CaseNoEncrypt    
+});
+
+function Cart() {
+    //    window.location.href = '~/Docs/ShoppingCart/';
+    //    window.location.href = '@Url.Action("ShoppingCart","Docs")'
+}
+var caseid = "";
+var PageSize = 6;
+var objDetailViewModel = null;
+var Status = 0;
+var AspxOldURL = "http://localhost:44400";
+
+var AttachmentViewModel = function (objData, CaseTitle) {
+    var self = this;
+
+    self.strActivityDate = ko.observable(objData.strActivityDate);
+    self.AttachmentId = ko.observable(objData.AttachmentId);
+    self.AttachmentLink = ko.observable(objData.AttachmentLink);
+    self.AttachmentNo = ko.observable(objData.AttachmentNo);
+    self.CaseProceedings = ko.observable(objData.CaseProceedings);
+    self.DocumentType = ko.observable(objData.DocumentType);
+    self.FileName = ko.observable(objData.FileName);
+    self.ToolTip = ko.observable(objData.ToolTip);
+    self.PageCount = ko.observable(objData.PageCount);
+    self.Price = ko.observable(objData.Price);
+    self.FileType = ko.observable(objData.FileType);
+    self.CaseId = ko.observable(objData.CaseId);
+    self.CaseNo = ko.observable(objData.CaseNo);
+    self.RequestData = ko.observable(objData.RequestData);
+    self.MainPlaintiff = ko.observable(objData.MainPlaintiff);
+    self.MainDefendent = ko.observable(objData.MainDefendent);
+    self.CaseTitle = ko.observable(CaseTitle);
+    self.IsFree = ko.observable(objData.IsFree);
+    self.RoleType = ko.observable(objData.RoleType);
+
+
+    if (objData.PageCount == "-1") {
+        self.PageCount = ko.observable("1+");
+    }
+    //	if (objData.IsFree == true)
+    //	{
+    //		self.IsFree = ko.observable("1");
+    //	}
+    //	else
+    //	{
+    //		self.IsFree = ko.observable("0");
+    //	}
+    //self.IsAddedToCart = ko.observable("0");
+    self.IsAddedToCart = ko.observable(objData.IsAddedToCart);
+    self.doFileDownload = function () {
+        debugger;
+        //var url = AspxOldURL + '/FileDownload.aspx?sourcefile=' + self.FileName();
+        // window.open(url);
+        LoadDetailViewDocs();
+    }
+
+    function LoadDetailViewDocs() {
+        debugger;
+        var doc = "0 05-cv-00536_Markman hearing _ 12212007";
+        $.ajax({
+            type: "POST",
+            url: RootURL + "Docs/DownLoadDocument",
+            data: "{'doc':'" + doc + "'}",
+            contentType: 'application/json',
+            success: function (mydata) {
+                debugger;
+                alert(mydata);
+                if (mydata == 'Success') {
+                    alert("test success");
+                }
+                else {
+                    alert('none');
+                }
+            },
+            error: function (xhr, ajaxOptions, thrownError) {
+                HandleException(xhr);
+            }
+        });
+    }
+
+
+
+    self.SuperAdminFileDownload = function () {
+
+        $.ajax({
+            type: "POST",
+            url: RootURL + "Docs/SuperAdminFileDownload",
+            data: "{'AttachId':'" + self.AttachmentId() + "','chkStatus':'0','CaseNo':'" + self.CaseNo() + "','CaseId':'" + self.CaseId() + "','Price':'" + self.Price() + "'}",
+            contentType: 'application/json',
+            success: function (mydata) {
+                if (mydata.Success == 'Avail') {
+                    var url = AspxOldURL + '/FileDownload.aspx?sourcefile=' + self.FileName();
+                    window.open(url);
+                }
+                else if (mydata.Success == 'Confirm') {
+                    var Chceck = confirm("File Does not avail do you want download!");
+
+                    if (Chceck == true) {
+                        $.ajax({
+                            type: "POST",
+                            url: RootURL + "Docs/SuperAdminFileDownload",
+                            data: "{'AttachId':'" + self.AttachmentId() + "' ,'chkStatus':'1','CaseNo':'" + self.CaseNo() + "','CaseId':'" + self.CaseId() + "','Price':'" + self.Price() + "'}",
+                            contentType: 'application/json',
+                            success: function (mydata) {
+                                if (mydata.Success == 'False') {
+                                    ShowErrorMessage("Attachment_Link");
+                                } else {
+                                    var url = AspxOldURL + '/FileDownload.aspx?sourcefile=' + mydata.Success;
+                                    window.open(url);
+                                }
+                            },
+                            error: function (xhr, ajaxOptions, thrownError) {
+                                HandleError(xhr);
+                            }
+                        });
+                    }
+                    else {
+
+                    }
+                }
+                else {
+                    alert('none');
+                }
+            },
+            error: function (xhr, ajaxOptions, thrownError) {
+                HandleException(xhr);
+            }
+        });
+    }
+
+    self.doRemoveFromCart = function () {
+        $.ajax({
+            type: "POST",
+            url: RootURL + "Docs/RemoveFromCart",
+            data: ko.toJSON(self),
+            contentType: 'application/json',
+            success: function (mydata) {
+                if (mydata.Success == 0) {
+                    self.IsAddedToCart("0");
+                    ShowSuccessMessage("DetailView_Cart_Removed");
+                } else {
+                    ShowSuccessMessage("DetailView_Cart_Remove_Fail");
+                }
+            },
+            error: function (xhr, ajaxOptions, thrownError) {
+                HandleException(xhr);
+            }
+        });
+    };
+    self.doAddToCart = function () {
+        $.ajax({
+            type: "POST",
+            url: RootURL + "Docs/SaveDocumentsActivity",
+            data: ko.toJSON(self),
+            contentType: 'application/json',
+            success: function (mydata) {
+                if (mydata.Success == 0) {
+                    self.IsAddedToCart("1");
+                    ShowSuccessMessage("DetailView_Cart_Added");
+                } else if (mydata.Success == 1) {
+                    self.IsAddedToCart("1");
+                    ShowSuccessMessage("DetailView_Cart_Exists");
+                } else {
+                    ShowErrorMessage("DetailView_Cart_Fail");
+                }
+            },
+            error: function (xhr, ajaxOptions, thrownError) {
+                HandleException(xhr);
+            }
+        });
+    };
+}
+
+
+function BuildData(data) {
+    var source = [];
+    var items = [];
+    var item = {};
+    // build hierarchical source.
+    for (i = 0; i < data.length; i++) {
+        var item = data[i];
+        var text = item["name"];
+        var parent = item["parentid"];
+        var id = item["id"];
+
+        if (parent == 0) {
+            parent = "#";
+            item = { id: id, parent: parent, text: text, "state": { "opened": true} };
+        }
+        else {
+            item = { id: id, parent: parent, text: text, "state": { "opened": true} };
+        }
+        source.push(item);
+    }
+    return source;
+}
+
+var DetailViewModel = function (objDetailView) {
+
+    var splPlaindiffLawFirm = objDetailView[0].PlaindiffLawFirm.split("~");
+    var splDefendantLawFirm = objDetailView[0].DefendantLawFirm.split("~");
+    var splPlaindiffAttorney = objDetailView[0].PlaindiffAttorney.split("~");
+    var splDefendantAttorney = objDetailView[0].DefendantAttorney.split("~");
+
+    var PlaindiffLawFirm = [];
+    var DefendantLawFirm = [];
+    var PlaindiffAttorney = [];
+    var DefendantAttorney = [];
+    if (splPlaindiffLawFirm.length > 0) {
+        for (inti = 0; inti < splPlaindiffLawFirm.length; inti++) {
+            if (splPlaindiffLawFirm[inti] + "" != "") {
+                PlaindiffLawFirm[inti] = { 'LawFirmName': $.trim(splPlaindiffLawFirm[inti]) };
+            }
+        }
+    }
+    if (splDefendantLawFirm.length > 0) {
+        for (inti = 0; inti < splDefendantLawFirm.length; inti++) {
+            if (splDefendantLawFirm[inti] + "" != "") {
+                DefendantLawFirm[inti] = { 'LawFirmName': $.trim(splDefendantLawFirm[inti]) };
+            }
+        }
+    }
+    if (splPlaindiffAttorney.length > 0) {
+        for (inti = 0; inti < splPlaindiffAttorney.length; inti++) {
+            if (splPlaindiffAttorney[inti] + "" != "") {
+                PlaindiffAttorney[inti] = { 'AttrName': $.trim(splPlaindiffAttorney[inti]) };
+            }
+        }
+    }
+    if (splDefendantAttorney.length > 0) {
+        for (inti = 0; inti < splDefendantAttorney.length; inti++) {
+            if (splDefendantAttorney[inti] + "" != "") {
+                DefendantAttorney[inti] = { 'AttrName': $.trim(splDefendantAttorney[inti]) };
+            }
+        }
+    }
+    //Selvakumar -27-5-2014
+
+    var self = this;
+    self.Plaintiff = ko.observable(objDetailView[0].Plaintiff);
+    self.Defendant = ko.observable(objDetailView[0].Defendant);
+    self.CaseNumber = ko.observable(objDetailView[0].CaseNumber);
+    self.CourtName = ko.observable(objDetailView[0].CourtName);
+    self.Status = ko.observable(objDetailView[0].Status);
+    self.JudgeName = ko.observable(objDetailView[0].JudgeName);
+    self.Copyright = ko.observable(objDetailView[0].Copyright);
+    self.TrademarkNo = ko.observable(objDetailView[0].TrademarkNo);
+
+    if (objDetailView[0].PACERUrl == null) {
+        self.PACERUrl = ko.observable("");
+    }
+    else {
+        self.PACERUrl = ko.observable(objDetailView[0].PACERUrl + "");
+    }
+    self.DisplayFiledDate = ko.observable(objDetailView[0].DisplayFiledDate);
+    self.DisplayClosedDate = ko.observable(objDetailView[0].DisplayClosedDate);
+    self.OtherPlaintiff = ko.observable(objDetailView[0].OtherPlaintiff);
+    self.OtherDefendant = ko.observable(objDetailView[0].OtherDefendant);
+    self.CounterClaimant = ko.observable(objDetailView[0].CounterClaimant);
+    self.CounterDefendant = ko.observable(objDetailView[0].CounterDefendant);
+    self.PlaindiffLawFirm = ko.observable(PlaindiffLawFirm);
+    self.DefendantLawFirm = ko.observable(DefendantLawFirm);
+    self.PlaindiffAttorney = ko.observable(PlaindiffAttorney);
+    self.DefendantAttorney = ko.observable(DefendantAttorney);
+    self.Product = ko.observable(objDetailView[0].Product);
+    //self.PatentInfo = ko.observable(objDetailView[0].PatentInfo);
+    self.PatentCount = ko.observable(objDetailView[0].PatentCount);
+    self.DisplayAssignedDate = ko.observable(objDetailView[0].DisplayAssignedDate);
+    self.BasicTermination = ko.observable(objDetailView[0].BasicTermination);
+    self.ClaimsAsserted = ko.observable(objDetailView[0].ClaimsAsserted);
+    self.OutComeCaseStatus = ko.observable(objDetailView[0].OutComeCaseStatus);
+    self.ClaimsConstrued = ko.observable(objDetailView[0].ClaimsConstrued);
+    self.DamagesAmt = ko.observable(objDetailView[0].DamagesAmt);
+    self.LicenseAmt = ko.observable(objDetailView[0].LicenseAmt);
+    self.Injunction = ko.observable(objDetailView[0].Injunction);
+    self.PreliminaryInjunction = ko.observable(objDetailView[0].PreliminaryInjunction);
+    self.Comments = ko.observable(objDetailView[0].Comments);
+    self.OutcomeofDCJ = ko.observable(objDetailView[0].OutcomeofDCJ);
+    self.TerminationDate = ko.observable(objDetailView[0].TerminationDate);
+
+
+
+    self.RelatedCases = ko.observable(objDetailView[0].RelatedCases);
+    self.Attachments = ko.observable(objDetailView[0].Attachments.AttachmentModels);
+    self.OriginCases = ko.observable(objDetailView[0].OriginCases);
+    self.PatentInfo = ko.observable(objDetailView[0].PatentInfo);
+    self.DACount = ko.observable(objDetailView[0].DACount);
+    self.OutcomeCaseType = ko.observable(objDetailView[0].OutcomeCaseType);
+
+    //Added by S.Rajesh Kumar for Foriegn Case Details
+    self.CountryName = ko.observable(objDetailView[0].CountryName);
+    self.ForiegnBasicTermination = ko.observable(objDetailView[0].ForiegnBasicTermination);
+    self.ForiegnOutcomeofDCJ = ko.observable(objDetailView[0].ForiegnOutcomeofDCJ);
+    self.ForiegnInjunction = ko.observable(objDetailView[0].ForiegnInjunction);
+    self.ForiegnPreliminaryInjunction = ko.observable(objDetailView[0].ForiegnPreliminaryInjunction);
+
+    var CaseTitle = self.Plaintiff() + 'v' + self.Defendant();
+    var AttachmentViewModels = [];
+
+    if (objDetailView[0].AttachmentsModel != null) {
+        for (var i = 0; i < objDetailView[0].AttachmentsModel.length; i++) {
+            AttachmentViewModels.push(new AttachmentViewModel(objDetailView[0].AttachmentsModel[i], CaseTitle));
+        }
+    }
+    self.AttachmentsModel = ko.observable(AttachmentViewModels);
+    // For ITC 
+    self.StatusBeforeCommision = ko.observable(objDetailView[0].StatusBeforeCommision);
+    self.NoticeofInvestigation = ko.observable(objDetailView[0].NoticeofInvestigation);
+    self.CurrentProceeding = ko.observable(objDetailView[0].CurrentProceeding);
+    self.TypeofProceeding = ko.observable(objDetailView[0].TypeofProceeding);
+    self.RelatedCourtDecisions = ko.observable(objDetailView[0].RelatedCourtDecisions);
+    self.PublishedCommissionOpinions = ko.observable(objDetailView[0].PublishedCommissionOpinions);
+    self.AppealStatusResult = ko.observable(objDetailView[0].AppealStatusResult);
+    self.Disposition = ko.observable(objDetailView[0].Disposition);
+    self.RemedialOrder = ko.observable(objDetailView[0].RemedialOrder);
+    self.UnfairActs = ko.observable(objDetailView[0].UnfairActs);
+    self.UnfairActFound = ko.observable(objDetailView[0].UnfairActFound);
+    self.ExclusionCDOrders = ko.observable(objDetailView[0].ExclusionCDOrders);
+    self.DispositionRemedy = ko.observable(objDetailView[0].DispositionRemedy);
+    self.DisplayInvTD = ko.observable(objDetailView[0].DisplayInvTD);
+    self.PlaintiffCount = ko.observable(objDetailView[0].PlaintiffCount);
+    self.DefendantCount = ko.observable(objDetailView[0].DefendantCount);
+    self.CaseType = ko.observable(objDetailView[0].CaseType);
+
+    //New ITC Single Fields
+    self.ActualStartDate = ko.observable(toDate(objDetailView[0].ActualStartDate));
+    self.ActualEndDate = ko.observable(toDate(objDetailView[0].ActualEndDate));
+    self.ScheduleStart = ko.observable(toDate(objDetailView[0].ScheduleStart));
+    self.ScheduleEnd = ko.observable(toDate(objDetailView[0].ScheduleEnd));
+    self.MarkmanStartDate = ko.observable(toDate(objDetailView[0].MarkmanStartDate));
+    self.MarkManEndDate = ko.observable(toDate(objDetailView[0].MarkManEndDate));
+    self.DateOFInstitution = ko.observable(toDate(objDetailView[0].DateOFInstitution));
+    self.FinalIDDueDate = ko.observable(toDate(objDetailView[0].FinalIDDueDate));
+    self.FinalIDIssueDate = ko.observable(toDate(objDetailView[0].FinalIDIssueDate));
+    self.FinalDeterminationNoViolation = ko.observable(toDate(objDetailView[0].FinalDeterminationNoViolation));
+    self.FinalDeterminationViolation = ko.observable(toDate(objDetailView[0].FinalDeterminationViolation));
+    self.NonFinalIDIssued = ko.observable(toDate(objDetailView[0].NonFinalIDIssued));
+    self.WebCaseID = ko.observable(objDetailView[0].WebCaseID);
+    self.DocketNumber = ko.observable(objDetailView[0].DocketNumber);
+    self.FiledDate = ko.observable(toDate(objDetailView[0].FiledDate));
+    self.TargetDate = ko.observable((objDetailView[0].TargetDate));
+
+    //New PTAB Single Fileds
+    self.TechCenter = ko.observable(objDetailView[0].TechCenter);
+    //alert(self.TechCenter);
+    self.ApplicationNumber = ko.observable(objDetailView[0].ApplicationNumber);
+    self.ClaimsChallenge = ko.observable(objDetailView[0].ClaimsChallenge);
+    self.ClaimsInstitute = ko.observable(objDetailView[0].ClaimsInstitute);
+    self.ClaimsInvalidate = ko.observable(objDetailView[0].ClaimsInvalidate);
+    self.PTABComments = ko.observable(objDetailView[0].PTABComments);
+    self.Outcome = ko.observable(objDetailView[0].Outcome);
+    self.PTABCaseStatus = ko.observable(objDetailView[0].PTABCaseStatus);
+    self.DisplayInstitutionDecisionDate = ko.observable(toDate(objDetailView[0].InstitutionDecisionDate));
+
+    var PetitionerName = objDetailView[0].MainPlaintiff;
+    var lastchar = PetitionerName[PetitionerName.length - 1];
+    if (lastchar == ",") {
+        var newPetitionerName = PetitionerName.substring(0, PetitionerName.length - 1);
+        self.PetitionerName = ko.observable(newPetitionerName);
+    }
+    else {
+        self.PetitionerName = ko.observable(PetitionerName);
+    }
+    var PatentOwnerName = objDetailView[0].MainDefendant;
+    var lastchar = PatentOwnerName[PatentOwnerName.length - 1];
+    if (lastchar == ",") {
+        var newPatentOwnerName = PatentOwnerName.substring(0, PatentOwnerName.length - 1);
+        self.PatentOwnerName = ko.observable(newPatentOwnerName);
+    }
+    else {
+        self.PatentOwnerName = ko.observable(PatentOwnerName);
+    }
+
+    //New ITC Multi Fields
+    self.lstCompRespITC = ko.observable(objDetailView[0].lstCompRespITC);
+    self.lstDispositionITC = ko.observable(objDetailView[0].lstDispositionITC);
+    self.lstPatentITC = ko.observable(objDetailView[0].lstPatentITC);
+    self.lstHTSNumbersITC = ko.observable(objDetailView[0].lstHTSNumbersITC);
+    self.lstUnfairActITC = ko.observable(objDetailView[0].lstUnfairActITC);
+    self.lstCustomEnforceITC = ko.observable(objDetailView[0].lstCustomEnforceITC);
+    self.lstOuiiITC = ko.observable(objDetailView[0].lstOuiiITC);
+    self.lstGeneCounselITC = ko.observable(objDetailView[0].lstGeneCounselITC);
+    self.lstAdminLawJudITC = ko.observable(objDetailView[0].lstAdminLawJudITC);
+    self.lstTradeMarkITC = ko.observable(objDetailView[0].lstTradeMarkITC);
+    self.lstCopyRightITC = ko.observable(objDetailView[0].lstCopyRightsITC);
+    self.lstCompRespITCExpand = function (ctrl) {
+        if ($("#lstCompRespITCExpand").is(':visible')) {
+            $("#lstCompRespITCExpand").hide();
+            $("#lstCompRespITCCollapse").show();
+        }
+        else {
+            $("#lstCompRespITCExpand").show();
+            $("#lstCompRespITCCollapse").hide();
+        }
+        $(".Disposition" + ctrl.Comp_Resp_ID).fadeToggle();
+    };
+
+
+
+};
+
+function LoadDetailViewList() {
+    debugger;
+    //ShowLoadingMessageDV();
+    caseid = CaseID;
+    $.ajax({
+        type: "POST",
+        cache: false,
+        url: RootURL + "Docs/GetDocView",
+        data: "{'CaseID':'" + CaseID + "','PageSize':'" + PageSize + "'}",
+        contentType: 'application/json',
+        success: function (mydata) {
+            if (mydata.length != 0) {
+                $("#content-wrapper").show();
+                // this for hiding incase of no datas
+
+                if (mydata[0].AttachmentsModel != null && mydata[0].AttachmentsModel.length != 0) {
+                    $("#dvAttachments").show();
+                } else {
+                    $("#dvAttachments").hide();
+                }
+
+
+                if (objDetailViewModel == null) {
+                    objDetailViewModel = new DetailViewModel(mydata);
+                    ko.applyBindings(objDetailViewModel, document.getElementById("dvDetailView"));
+
+                    ko.applyBindings(objDetailViewModel, document.getElementById("dvAttachments"));
+
+
+                }
+                else {
+
+                    if (mydata[0].OtherPlaintiff.length < mydata[0].PlaintiffCount || mydata[0].OtherDefendant.length < mydata[0].DefendantCount && status == 1) {
+                        objDetailViewModel.OtherPlaintiff(mydata[0].OtherPlaintiff);
+                        objDetailViewModel.OtherDefendant(mydata[0].OtherDefendant);
+                        $("#SeeMorePlaintiffClick").show();
+                    } else if (status == 1) {
+                        objDetailViewModel.OtherPlaintiff(mydata[0].OtherPlaintiff);
+                        objDetailViewModel.OtherDefendant(mydata[0].OtherDefendant);
+                        $("#SeeMorePlaintiffClick").hide();
+                    }
+                }
+
+            } else {
+                ShowErrorMessage("DetailView_Empty");
+                $("#content-wrapper").hide();
+            }
+            CloseAllMessagesDV();
+        },
+        complete: function () {
+            //  $.noty.closeAll();
+            $("#divMain").css('display', 'block');
+
+            // LoadNiceInfo(CaseID);
+        },
+        error: function (xhr, ajaxOptions, thrownError) {
+            $("#dvAttachments").hide();
+            HandleException(xhr);
+        }
+    });
+
+}
+
+
+
+
+function CloseAllMessagesDV() {
+    debugger;
+    // $.noty.closeAll();
+}
+function ShowLoadingMessageDV() {
+    InitiateLoadMessageDV('Data Loading...', 'alert', true);
+}
+
+var toDateRe = new RegExp("^/Date\\((\\d+)\\)/$");
+function toDate(s) {
+    if (!s) {
+        return null;
+    }
+    var constructor = s.replace(toDateRe, "new Date($1)");
+    if (constructor == s) {
+        return ' ';
+    }
+    var res = eval(constructor);
+    var y = res.getFullYear();
+    var m = (res.getMonth() + 1);
+    var d = res.getDate();
+    var resformat = (m <= 9 ? '0' + m : m) + '-' + (d <= 9 ? '0' + d : d) + "-" + y;
+    return resformat;
+
+    return s;
+}
