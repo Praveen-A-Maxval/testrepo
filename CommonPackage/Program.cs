@@ -10,6 +10,7 @@ namespace CommonPackage
     {
         /// <summary>
         /// The main entry point for the application.
+        /// testing CheckIn
         /// </summary>
         [STAThread]
         static void Main()

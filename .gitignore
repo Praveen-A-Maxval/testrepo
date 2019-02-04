@@ -3,3 +3,5 @@
 ################################################################################
 
 /CommonPackage/bin/Debug
+/CommonPackage/obj/Debug
+/CommonPackageBAL/obj/Debug
