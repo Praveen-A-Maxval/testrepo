@@ -5,6 +5,7 @@
 //////////////////////////////////////////////
 
 $(document).ready(function () {
+test
     timeShowLoadingMessage();
     LoadDetailViewList();
     var RootURL = '@Url.Content("~/")';
